@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">NetSwitch</string>
+    <string name="tile_label">Network</string>
+</resources>
