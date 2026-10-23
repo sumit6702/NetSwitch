@@ -52,7 +52,7 @@ class NetSwitchTileService : TileService() {
         lastClickTime = now
 
         val context = applicationContext
-        val isShizukuReady = ShizukuManager.isShizukuInstalled(context) &&
+        val isShizukuReady = (ShizukuManager.isShizukuInstalled(context) || ShizukuManager.isShizukuRunning()) &&
                 ShizukuManager.isShizukuRunning() &&
                 ShizukuManager.isPermissionGranted()
 
@@ -87,7 +87,7 @@ class NetSwitchTileService : TileService() {
         val tile = qsTile ?: return
         val context = applicationContext
 
-        val isInstalled = ShizukuManager.isShizukuInstalled(context)
+        val isInstalled = ShizukuManager.isShizukuInstalled(context) || ShizukuManager.isShizukuRunning()
         val isRunning = ShizukuManager.isShizukuRunning()
         val isPermitted = ShizukuManager.isPermissionGranted()
 

@@ -241,15 +241,22 @@ data class AppError(
 
         private fun openShizukuApp(context: Context) {
             val pm = context.packageManager
-            val intent = pm.getLaunchIntentForPackage(ShizukuManager.SHIZUKU_PACKAGE_NAME)
-            if (intent != null) {
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                context.startActivity(intent)
-            } else {
-                val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${ShizukuManager.SHIZUKU_PACKAGE_NAME}"))
-                marketIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                context.startActivity(marketIntent)
+            val packages = listOf(
+                ShizukuManager.SHIZUKU_PACKAGE_NAME,
+                "moe.shizuku.privileged.api.debug",
+                "rikka.sui"
+            )
+            for (pkg in packages) {
+                val intent = pm.getLaunchIntentForPackage(pkg)
+                if (intent != null) {
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(intent)
+                    return
+                }
             }
+            val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${ShizukuManager.SHIZUKU_PACKAGE_NAME}"))
+            marketIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            context.startActivity(marketIntent)
         }
     }
 }

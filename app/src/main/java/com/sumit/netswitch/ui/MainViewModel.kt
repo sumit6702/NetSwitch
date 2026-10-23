@@ -89,7 +89,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ShizukuManager.updateStatus(app)
         val status = ShizukuManager.statusFlow.value
 
-        if (!status.isInstalled) {
+        if (!status.isInstalled && !status.isRunning) {
             _uiState.update { it.copy(activeError = AppError.shizukuNotInstalled()) }
             return
         } else if (!status.isRunning) {
@@ -133,7 +133,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val currentState = _uiState.value
         val app = getApplication<Application>()
 
-        if (!currentState.shizukuStatus.isInstalled) {
+        if (!currentState.shizukuStatus.isInstalled && !currentState.shizukuStatus.isRunning) {
             _uiState.update { it.copy(activeError = AppError.shizukuNotInstalled()) }
             return
         }

@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import com.sumit.netswitch.BuildConfig
@@ -29,6 +30,7 @@ object ShizukuManager {
     const val SHIZUKU_PERMISSION_REQUEST_CODE = 4421
 
     private val mutex = Mutex()
+    private var appContext: Context? = null
     private var userService: IUserService? = null
     private var connectionDeferred: CompletableDeferred<IUserService>? = null
     private var isListenersRegistered = false
@@ -94,6 +96,7 @@ object ShizukuManager {
     }
 
     fun init(context: Context) {
+        appContext = context.applicationContext
         if (!isListenersRegistered) {
             try {
                 Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
@@ -108,15 +111,48 @@ object ShizukuManager {
     }
 
     fun isShizukuInstalled(context: Context): Boolean {
-        return try {
-            context.packageManager.getPackageInfo(SHIZUKU_PACKAGE_NAME, 0)
-            true
-        } catch (_: PackageManager.NameNotFoundException) {
-            false
-        } catch (e: Exception) {
-            Log.e(TAG, "Error checking Shizuku installation: ${e.message}")
-            false
+        // 1. If Shizuku or Sui binder is already active, Shizuku is definitely installed and running
+        if (isShizukuRunning()) {
+            return true
         }
+
+        val packageNamesToCheck = listOf(
+            SHIZUKU_PACKAGE_NAME,
+            "moe.shizuku.privileged.api.debug",
+            "rikka.sui"
+        )
+
+        for (pkg in packageNamesToCheck) {
+            val found = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.packageManager.getPackageInfo(
+                        pkg,
+                        PackageManager.PackageInfoFlags.of(0)
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageInfo(pkg, 0)
+                }
+                true
+            } catch (_: PackageManager.NameNotFoundException) {
+                false
+            } catch (e: Exception) {
+                Log.d(TAG, "Package lookup error for $pkg: ${e.message}")
+                false
+            }
+
+            if (found) return true
+
+            // Secondary check via launch intent in case component querying behaves differently
+            try {
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg)
+                if (launchIntent != null) return true
+            } catch (_: Exception) {
+                // Ignore
+            }
+        }
+
+        return false
     }
 
     fun isShizukuRunning(): Boolean {
@@ -153,9 +189,10 @@ object ShizukuManager {
     }
 
     fun updateStatus(context: Context? = null) {
+        val targetContext = context ?: appContext
         val running = isShizukuRunning()
         val granted = if (running) isPermissionGranted() else false
-        val installed = if (context != null) isShizukuInstalled(context) else _statusFlow.value.isInstalled
+        val installed = running || (if (targetContext != null) isShizukuInstalled(targetContext) else _statusFlow.value.isInstalled)
         val connected = userService != null && (userService?.asBinder()?.pingBinder() == true)
 
         _statusFlow.value = ShizukuStatus(
@@ -205,7 +242,7 @@ object ShizukuManager {
     }
 
     suspend fun executeCommand(context: Context, command: String): CommandResult = withContext(Dispatchers.IO) {
-        if (!isShizukuInstalled(context)) {
+        if (!isShizukuInstalled(context) && !isShizukuRunning()) {
             val res = CommandResult.error("Shizuku app is not installed.")
             CommandLogRepository.addLog(command, res)
             return@withContext res

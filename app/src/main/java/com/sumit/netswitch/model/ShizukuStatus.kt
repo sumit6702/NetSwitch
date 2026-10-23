@@ -7,5 +7,5 @@ data class ShizukuStatus(
     val isServiceConnected: Boolean
 ) {
     val isReady: Boolean
-        get() = isInstalled && isRunning && isPermissionGranted
+        get() = (isInstalled || isRunning) && isRunning && isPermissionGranted
 }
